@@ -2,25 +2,58 @@
 
 @section('content')
     <div id="map-container">
-        <div id="provinceSelectorCard">
-            <label for="provinceSelector">Choose Province:</label>
-            <select id="provinceSelector" class="form-select" onchange="changeProvince()">
-                <option value="centralJava">Central Java</option>
-                <option value="westJava">West Java</option>
-                <option value="eastJava">East Java</option>
-                <option value="diy">Daerah Istimewa Yogyakarta (DIY)</option>
-                <option value="dkiJakarta">Daerah Khusus Ibukota (DKI) Jakarta</option>
-                <option value="banten">Banten</option>
-            </select>
+        <div class="row">
+            <div class="col-md-4">
+                <div id="provinceSelectorCard">
+                    <label for="provinceSelector">Choose Province:</label>
+                    <select id="provinceSelector" class="form-select" onchange="changeProvince()">
+                        <option value="banten">Banten</option>
+                        <option value="centralJava">Central Java</option>
+                        <option value="diy">Daerah Istimewa Yogyakarta (DIY)</option>
+                        <option value="dkiJakarta">Daerah Khusus Ibukota (DKI) Jakarta</option>
+                        <option value="eastJava">East Java</option>
+                        <option value="westJava">West Java</option>
+                    </select>
+                </div>
+                <div id="attributeSelectorCard">
+                    <label for="attributeSelector">Choose Range of Age:</label>
+                    <select id="attributeSelector" class="form-select" onchange="changeAttribute()">
+                        <option value="U0">0-5 y.o.</option>
+                        <option value="U5">5-10 y.o.</option>
+                        <option value="U10">10-15 y.o.</option>
+                        <option value="U15">15-20 y.o.</option>
+                        <option value="U20">20-25 y.o.</option>
+                        <option value="U25">25-30 y.o.</option>
+                        <option value="U30">30-35 y.o.</option>
+                        <option value="U35">35-40 y.o.</option>
+                        <option value="U40">40-45 y.o.</option>
+                        <option value="U45">45-50 y.o.</option>
+                        <option value="U50">50-55 y.o.</option>
+                        <option value="U55">55-60 y.o.</option>
+                        <option value="U60">60-65 y.o.</option>
+                        <option value="U65">65-70 y.o.</option>
+                        <option value="U70">70-75 y.o.</option>
+                        <option value="U75">>75 y.o.</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div id="legend">
+                    <div id="legend-content"></div>
+                </div>
+            </div>
         </div>
         <div id="map"></div>
     </div>
 @endsection
 
 @push('scripts')
+<script src="https://d3js.org/d3.v5.min.js"></script>
 <script>
     let shapefileLayer = L.layerGroup();
     let shpfile;
+    let selectedAttribute;
+    let selectedProvince;
     const map = L.map('map');
     let bounds=L.latLngBounds([-11, 95], [-6, 113]);;
 
@@ -43,9 +76,57 @@
         }
         return color;
     }
+    const colorRanges = [
+        { min: 0, max: 1000, color: '#FF0000' },
+        { min: 1001, max: 2000, color: '#FFA500' },
+        { min: 2001, max: 3000, color: '#FFFF00' },
+        { min: 3001, max: 4000, color: '#008000' },
+        { min: 4001, max: Infinity, color: '#0000FF' },
+    ];
+
+    function interpolateColor(value, colorScale) {
+        const scale = d3.scaleLinear().domain(colorScale.map(color => color.min)).range(colorScale.map(color => color.color));
+        return scale(value);
+    }
+
+    function updateMapColors() {
+        if (selectedAttribute && shapefileLayer) {
+            shapefileLayer.eachLayer(function (layer) {
+                const fillColor = interpolateColor(layer.feature.properties[selectedAttribute], colorRanges);
+                layer.setStyle({ fillColor: fillColor });
+            });
+        }
+    }
+    
+    function changeAttribute() {
+        selectedAttribute = document.getElementById('attributeSelector').value;
+        // updateMapProperties(bounds, getMinZoomByProvince(selectedProvince));
+        // changeProvince(); // Refresh the map with the new attribute
+    //     shapefileLayer.eachLayer(function (layer) {
+    //     layer.getPopup().setContent(createPopupContent(layer.feature.properties));
+    // });
+        if (selectedAttribute && shapefileLayer) {
+        shapefileLayer.eachLayer(function (layer) {
+            layer.getPopup().setContent(createPopupContent(layer.feature.properties));
+        });
+        updateLegend();
+    }
+    updateMapColors();
+    }
+    function updateLegend() {
+    const legendContent = document.getElementById('legend-content');
+    legendContent.innerHTML = '<h2>Count</h2>';
+
+    for (const colorRange of colorRanges) {
+        const legendItem = document.createElement('div');
+        legendItem.innerHTML = `<span class="legend-color" style="background-color: ${colorRange.color};"></span>${colorRange.min}-${colorRange.max}`;
+        legendContent.appendChild(legendItem);
+    }
+}
 
     function changeProvince() {
-        const selectedProvince = document.getElementById('provinceSelector').value;
+        selectedProvince = document.getElementById('provinceSelector').value;
+        changeAttribute();
 
         if (shapefileLayer) {
             shapefileLayer.clearLayers();
@@ -67,11 +148,26 @@
                     );
                 }
             },
+            // onEachFeature: function (feature, layer) {
+            //     if (feature.properties) {
+            //         layer.bindPopup(
+            //             Object.keys(feature.properties)
+            //                 .filter(key => key === selectedAttribute) // Display only the selected attribute
+            //                 .map(function (k) {
+            //                     return k + ': ' + feature.properties[k];
+            //                 })
+            //                 .join('<br />'),
+            //             {
+            //                 maxHeight: 200
+            //             }
+            //         );
+            //     }
+            // },
             style: function (feature) {
-                const randomColor = getRandomColor();
+                // const randomColor = getRandomColor();
 
                 const style = {
-                    fillColor: randomColor,
+                    // fillColor: randomColor,
                     weight: 1,
                     opacity: 1,
                     color: 'white',
@@ -107,6 +203,7 @@
             });
             shapefileLayer.addTo(map);
             updateMapProperties(bounds, minZoom);
+            updateMapColors();
         });
     }
     function getBoundsByProvince(province) {
@@ -195,17 +292,25 @@
     }
 
     function createPopupContent(properties) {
-        let popupContent = '<table>';
-        for (let key in properties) {
-            popupContent += `<tr><td>${key}:</td><td>${properties[key]}</td></tr>`;
-        }
-        popupContent += '</table>';
+        // let popupContent = '<table>';
+        // for (let key in properties) {
+        //     popupContent += `<tr><td>${key}:</td><td>${properties[key]}</td></tr>`;
+        // }
+        // popupContent += '</table>';
+        // return popupContent;
+        // let popupContent = `<table><tr><th>${selectedAttribute}</th></tr>`;
+        // popupContent += `<tr><td>${properties[selectedAttribute]}</td></tr></table>`;
+        let popupContent = `<table><tr><th><h2>${properties[selectedAttribute]}</h2></th></tr>`;
+        popupContent += `<tr><td>Village</td> <td>:</td><td>${properties["DESA"]}</td></tr>`;
+        popupContent += `<tr><td>Subdistrict</td> <td>:</td><td>${properties["KECAMATAN"]}</td></tr>`;
+        popupContent += `<tr><td>District</td> <td>:</td><td>${properties["KAB_KOTA"]}</td></tr>`;
         return popupContent;
     }
 </script>
 <script>
     $(document).ready(function() {
-        $('#provinceSelector').select2();
+        $('#provinceSelector, #attributeSelector').select2();
     });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 @endpush
